@@ -1,0 +1,32 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ragkit"
+version = "0.1.0"
+description = "A lightweight, dependency-light Agentic RAG toolkit powered by Groq"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "Justin" }]
+keywords = ["rag", "llm", "groq", "nlp", "retrieval", "embeddings"]
+dependencies = [
+    "requests>=2.31",
+    "numpy>=1.26",
+    "fastembed>=0.3",
+    "fastapi>=0.110",
+    "uvicorn[standard]>=0.27",
+    "pydantic>=2.6",
+    "pypdf>=4.0",
+    "python-dotenv>=1.0",
+]
+
+[project.scripts]
+ragkit = "ragkit.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["ragkit*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
