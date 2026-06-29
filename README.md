@@ -1,33 +1,24 @@
-<div align="center">
+# ragkit
 
-# 🧠 ragkit — Agentic RAG, powered by Groq
-
-**Ask grounded, *cited* questions over your own documents — with sub-second LLM inference on Groq and zero-cost local embeddings.**
-
-[![CI](https://github.com/qazasd2518995/groq-agentic-rag/actions/workflows/ci.yml/badge.svg)](https://github.com/qazasd2518995/groq-agentic-rag/actions/workflows/ci.yml)
+[![CI](https://github.com/qazasd2518995/ragkit/actions/workflows/ci.yml/badge.svg)](https://github.com/qazasd2518995/ragkit/actions/workflows/ci.yml)
 ![Python](https://img.shields.io/badge/python-3.10%2B-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
-![Groq](https://img.shields.io/badge/LLM-Groq-orange)
 
-</div>
+A lightweight, dependency-light agentic Retrieval-Augmented Generation toolkit. It pairs local CPU embeddings (`fastembed`) with a Groq-hosted LLM, adds an agentic query-rewrite step before retrieval, and returns answers with citations back to the source passages. It can be used as a Python library, a command-line tool, or a FastAPI server.
 
----
+The query-rewrite step is what makes the pipeline "agentic": each question is first passed through a small LLM that turns vague, conversational input into a standalone search query, which generally improves retrieval over embedding the raw question directly. Answers are produced strictly from the retrieved passages and cite them as `[1]`, `[2]`, so every claim is traceable to a source.
 
-`ragkit` is a small, readable, **dependency-light** Retrieval-Augmented Generation toolkit. It indexes your PDFs / Markdown / text files, retrieves the most relevant passages with **local CPU embeddings** (no embedding API, no GPU), and answers your questions with a Groq-hosted LLM — **citing every source** so nothing is hallucinated without a trace.
+## Features
 
-It's "**agentic**" because each question first goes through an LLM **query-rewriting** step that turns vague, conversational questions into sharp standalone search queries — measurably better retrieval than embedding the raw question.
+- Agentic retrieval: an LLM rewrites and expands the query before searching.
+- Cited answers: each claim maps back to a numbered source passage.
+- Groq inference: `llama-3.3-70b-versatile` for answers, `llama-3.1-8b-instant` for the rewrite step.
+- Local embeddings: `fastembed` (ONNX, CPU-only). No embedding API, runs offline.
+- Small footprint: a NumPy vector store, with no separate vector database to operate.
+- Three interfaces: Python library, CLI, and a FastAPI REST server.
+- Tested in CI: the pipeline logic is unit-tested with the network mocked, so the suite runs without an API key.
 
-## ✨ Highlights
-
-- 🔎 **Agentic retrieval** — LLM rewrites/expands your query before searching.
-- 📚 **Cited answers** — every claim maps back to a `[1]`, `[2]` source passage.
-- ⚡ **Groq inference** — `llama-3.3-70b` for answers, `llama-3.1-8b-instant` for the cheap rewrite step.
-- 🧮 **Local embeddings** — `fastembed` (ONNX, CPU-only). No embedding API, runs offline.
-- 🪶 **Tiny footprint** — NumPy vector store, no heavyweight vector DB to operate.
-- 🧰 **Three interfaces** — Python library, CLI, and a FastAPI REST server.
-- ✅ **Tested & CI'd** — pipeline logic is unit-tested with the network mocked (runs without an API key).
-
-## 🏗️ How it works
+## How it works
 
 ```
                 ┌──────────────────────────────────────────────┐
@@ -48,16 +39,36 @@ It's "**agentic**" because each question first goes through an LLM **query-rewri
                 └──────────────────────────────────────────────┘
 ```
 
-## 🚀 Quickstart
+Groq is the inference backend for both the rewrite and answer steps. Embeddings are computed locally and never leave the machine.
+
+## Installation
 
 ```bash
-git clone https://github.com/qazasd2518995/groq-agentic-rag.git
-cd groq-agentic-rag
+git clone https://github.com/qazasd2518995/ragkit.git
+cd ragkit
 
 python -m venv venv && source venv/bin/activate
 pip install -e .
 
-cp .env.example .env          # then paste your Groq key (https://console.groq.com/keys)
+cp .env.example .env          # then add your Groq API key (https://console.groq.com/keys)
+```
+
+A Groq API key is required for the rewrite and answer steps. Embeddings run locally and need no key.
+
+## Usage
+
+### Library
+
+```python
+from ragkit import RagEngine
+
+engine = RagEngine()
+engine.add_document(open("report.md").read(), source="report.md")
+
+answer = engine.ask("What were the Q3 revenue drivers?")
+print(answer.text)
+for c in answer.citations:
+    print(c.marker, c.source, c.score)
 ```
 
 ### CLI
@@ -73,7 +84,7 @@ ragkit chat --docs ./samples
 Example output:
 
 ```
-✓ Indexed 2 chunks from 1 document(s)
+Indexed 2 chunks from 1 document(s)
 
 According to the context, full-time employees accrue 20 days of paid vacation
 per year [1]. Unused vacation of up to 5 days may be carried over into the next
@@ -84,7 +95,7 @@ Sources:
       # Acme Corp Employee Handbook (excerpt) ## Remote Work Policy …
 ```
 
-### REST API
+### API
 
 ```bash
 uvicorn ragkit.api:app --reload
@@ -96,70 +107,51 @@ curl -X POST localhost:8000/documents \
   -H 'content-type: application/json' \
   -d '{"text":"Our refund window is 30 days.","source":"policy"}'
 
-# ask
+# ask a question
 curl -X POST localhost:8000/ask \
   -H 'content-type: application/json' \
   -d '{"question":"how long do I have to ask for a refund?"}'
 ```
 
-Interactive docs are auto-generated at **http://localhost:8000/docs**.
+Interactive API documentation is auto-generated at http://localhost:8000/docs.
 
-### Python library
+## Configuration
 
-```python
-from ragkit import RagEngine
-
-engine = RagEngine()
-engine.add_document(open("report.md").read(), source="report.md")
-
-answer = engine.ask("What were the Q3 revenue drivers?")
-print(answer.text)
-for c in answer.citations:
-    print(c.marker, c.source, c.score)
-```
-
-## ⚙️ Configuration
-
-Everything is environment-driven (see `.env.example`):
+Configuration is environment-driven (see `.env.example`):
 
 | Variable | Default | Purpose |
 |---|---|---|
-| `GROQ_API_KEY` | — | **required** |
-| `RAG_CHAT_MODEL` | `llama-3.3-70b-versatile` | answer model |
-| `RAG_REWRITE_MODEL` | `llama-3.1-8b-instant` | query-rewrite model |
-| `RAG_EMBED_MODEL` | `BAAI/bge-small-en-v1.5` | local embedding model |
-| `RAG_CHUNK_SIZE` / `RAG_CHUNK_OVERLAP` | `800` / `120` | chunking |
-| `RAG_TOP_K` | `4` | passages retrieved per query |
+| `GROQ_API_KEY` | — | Groq API key (required) |
+| `GROQ_BASE_URL` | `https://api.groq.com/openai/v1` | Groq API base URL |
+| `RAG_CHAT_MODEL` | `llama-3.3-70b-versatile` | Answer model |
+| `RAG_REWRITE_MODEL` | `llama-3.1-8b-instant` | Query-rewrite model |
+| `RAG_EMBED_MODEL` | `BAAI/bge-small-en-v1.5` | Local embedding model |
+| `RAG_CHUNK_SIZE` | `800` | Chunk size in characters |
+| `RAG_CHUNK_OVERLAP` | `120` | Chunk overlap in characters |
+| `RAG_TOP_K` | `4` | Passages retrieved per query |
 
-## 🧪 Tests
+## Testing
 
 ```bash
 pip install -e . pytest
-pytest -q          # 9 tests, no API key needed (LLM + embeddings are mocked)
+pytest -q          # 9 tests, no API key needed (the LLM and embeddings are mocked)
 ```
 
-## 🗂️ Project layout
+## Project layout
 
 ```
 ragkit/
   config.py      env-driven settings
-  store.py       chunking + NumPy cosine vector store (+ save/load)
+  store.py       chunking + NumPy cosine vector store (with save/load)
   embeddings.py  fastembed CPU embeddings (lazy-loaded)
-  llm.py         Groq chat client (sync + streaming, retries)
-  engine.py      the agentic pipeline: rewrite → retrieve → cite
+  llm.py         Groq chat client (sync and streaming, with retries)
+  engine.py      the agentic pipeline: rewrite, retrieve, cite
   loaders.py     txt / md / pdf loaders
-  cli.py         `ragkit ask` / `ragkit chat`
+  cli.py         ragkit ask / ragkit chat
   api.py         FastAPI server
 tests/           unit tests (network mocked)
 ```
 
-## 📋 Roadmap
+## License
 
-- [ ] Streaming answers in the API (`text/event-stream`)
-- [ ] Re-ranking pass with a cross-encoder
-- [ ] Persisted on-disk index across restarts
-- [ ] Multi-tenant sessions
-
-## 📄 License
-
-MIT © Justin
+MIT

@@ -22,14 +22,14 @@ def _build_engine(doc_paths: list[str]) -> RagEngine:
     engine = RagEngine()
     docs = iter_documents(doc_paths)
     if not docs:
-        print(f"⚠️  No supported documents found in {doc_paths}", file=sys.stderr)
+        print(f"Error: no supported documents found in {doc_paths}", file=sys.stderr)
         sys.exit(1)
     total = 0
     for text, source in docs:
         n = engine.add_document(text, source)
         total += n
         print(f"  indexed {n:>4} chunks  ←  {source}", file=sys.stderr)
-    print(f"✓ Indexed {total} chunks from {len(docs)} document(s)\n", file=sys.stderr)
+    print(f"Indexed {total} chunks from {len(docs)} document(s)\n", file=sys.stderr)
     return engine
 
 
@@ -51,7 +51,7 @@ def cmd_ask(args: argparse.Namespace) -> None:
 def cmd_chat(args: argparse.Namespace) -> None:
     engine = _build_engine(args.docs)
     history: list[dict] = []
-    print("💬 Chat mode — ask questions about your documents (Ctrl-D to exit)\n")
+    print("Chat mode — ask questions about your documents (Ctrl-D to exit)\n")
     while True:
         try:
             q = input("you › ").strip()
